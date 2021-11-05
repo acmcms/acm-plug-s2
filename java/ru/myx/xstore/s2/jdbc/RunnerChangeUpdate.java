@@ -31,6 +31,7 @@ import ru.myx.ae3.control.field.ControlField;
 import ru.myx.ae3.control.fieldset.ControlFieldset;
 import ru.myx.ae3.help.Convert;
 import ru.myx.ae3.help.Create;
+import ru.myx.ae3.help.Format;
 import ru.myx.ae3.report.Report;
 import ru.myx.jdbc.lock.Runner;
 import ru.myx.util.EntrySimple;
@@ -89,7 +90,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 	private boolean destroyed = false;
 
 	RunnerChangeUpdate(final StorageLevel2 storage, final ServerJdbc server, final IndexingS2 indexing) {
-		
+
 		this.storage = storage;
 		this.server = server;
 		this.indexing = indexing;
@@ -103,7 +104,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			final String parentGuid,
 			final String updateName,
 			final String taskName) throws Throwable {
-		
+
 		boolean heavyLoad = false;
 		final List<Map.Entry<String, String>> list = new ArrayList<>();
 		// Do synchronization
@@ -145,7 +146,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 
 	private final void createSyncs(final Connection conn, final List<Map.Entry<String, String>> created, final String entryGuid, final String parentGuid, final String taskName)
 			throws Throwable {
-		
+
 		for (final Map.Entry<String, String> item : created) {
 			final String newGuid = item.getKey();
 			final String cntLnkId = item.getValue();
@@ -194,7 +195,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			try (final ResultSet rs = ps.executeQuery()) {
 				while (rs.next()) {
 					linkData.add(rs.getString(1));
-					linkData.add(new Integer(rs.getInt(2)));
+					linkData.add(Integer.valueOf(rs.getInt(2)));
 				}
 			}
 		}
@@ -970,7 +971,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 				if (rs.next()) {
 					final List<Object> result = new ArrayList<>();
 					do {
-						result.add(new Integer(rs.getInt(1)));
+						result.add(Integer.valueOf(rs.getInt(1)));
 						result.add(rs.getString(2));
 					} while (rs.next());
 					return result;
@@ -990,7 +991,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 				if (rs.next()) {
 					final List<Object> result = new ArrayList<>();
 					do {
-						result.add(new Integer(rs.getInt(1)));
+						result.add(Integer.valueOf(rs.getInt(1)));
 						result.add(rs.getString(2));
 					} while (rs.next());
 					return result;
@@ -1401,7 +1402,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 					final List<Object> result = new ArrayList<>();
 					do {
 						result.add(rs.getString(1));
-						result.add(new Integer(rs.getInt(2)));
+						result.add(Integer.valueOf(rs.getInt(2)));
 					} while (rs.next());
 					return result;
 				}
@@ -1421,7 +1422,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 					final List<Object> result = new ArrayList<>();
 					do {
 						result.add(rs.getString(1));
-						result.add(new Integer(rs.getInt(2)));
+						result.add(Integer.valueOf(rs.getInt(2)));
 					} while (rs.next());
 					return result;
 				}
@@ -1533,7 +1534,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			try (final ResultSet rs = ps.executeQuery()) {
 				while (rs.next()) {
 					linkData.add(rs.getString(1));
-					linkData.add(new Integer(rs.getInt(2)));
+					linkData.add(Integer.valueOf(rs.getInt(2)));
 				}
 			}
 		}
@@ -1621,7 +1622,12 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 								Report.event(
 										RunnerChangeUpdate.OWNER,
 										"INDEXING",
-										"skipped, already done, guid=" + lnkId + ", luid=" + lnkLuid + ", indexedAt=" + indexed + ", requestedAt=" + new Date(date));
+										"skipped, already done" //
+												+ ", guid=" + lnkId //
+												+ ", luid=" + lnkLuid //
+												+ ", indexedAt=" + indexed //
+												+ ", requestedAt=" + Format.Ecma.date(date)//
+								);
 								return;
 							}
 						}
@@ -1653,7 +1659,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			try (final ResultSet rs = ps.executeQuery()) {
 				while (rs.next()) {
 					linkData.add(rs.getString(1));
-					linkData.add(new Integer(rs.getInt(2)));
+					linkData.add(Integer.valueOf(rs.getInt(2)));
 				}
 			}
 		}
@@ -1738,7 +1744,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			ps.setMaxRows(RunnerChangeUpdate.LIMIT_BULK_UPGRADE);
 			try (final ResultSet rs = ps.executeQuery()) {
 				while (rs.next()) {
-					toUpgrade.add(new EntrySimple<>(rs.getString(1), new Integer(rs.getInt(2))));
+					toUpgrade.add(new EntrySimple<>(rs.getString(1), Integer.valueOf(rs.getInt(2))));
 				}
 			}
 		}
@@ -1956,8 +1962,8 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 									task.put("evtId", rs.getString(1));
 									task.put("evtCmdType", rs.getString(2));
 									task.put("evtCmdGuid", rs.getString(3));
-									task.put("evtCmdLuid", new Integer(rs.getInt(4)));
-									task.put("evtCmdDate", new Long(rs.getTimestamp(5).getTime()));
+									task.put("evtCmdLuid", Integer.valueOf(rs.getInt(4)));
+									task.put("evtCmdDate", Long.valueOf(rs.getTimestamp(5).getTime()));
 									tasks.add(task);
 								} while (rs.next());
 							} else {

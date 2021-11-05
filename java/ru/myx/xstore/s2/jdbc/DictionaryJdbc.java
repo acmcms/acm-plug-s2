@@ -51,7 +51,7 @@ final class DictionaryJdbc extends IndexingDictionaryAbstract {
 					if (rs.next()) {
 						final List<Integer> result = new ArrayList<>();
 						do {
-							result.add( new Integer( rs.getInt( 1 ) ) );
+							result.add( Integer.valueOf( rs.getInt( 1 ) ) );
 						} while (rs.next());
 						final int size = result.size();
 						if (size == 1) {
