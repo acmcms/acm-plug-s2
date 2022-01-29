@@ -1,5 +1,6 @@
 package ru.myx.xstore.s2.jdbc;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -80,7 +81,7 @@ final class MatVersion {
 					}
 					Xml.toMap( "meterializeVersionSnapshot",
 							Transfer.createCopier( rs.getBinaryStream( 3 ) ),
-							Engine.CHARSET_UTF8,
+							StandardCharsets.UTF_8,
 							null,
 							data,
 							server.getStorageExternalizer(),
@@ -122,7 +123,7 @@ final class MatVersion {
 							true,
 							server.getStorageExternalizer(),
 							new StoreInfo( conn, objId ),
-							512 ).getBytes( Engine.CHARSET_UTF8 ) );
+							512 ).getBytes( StandardCharsets.UTF_8 ) );
 			ps.execute();
 		}
 		if (vrExtra != null && !vrExtra.isEmpty()) {
@@ -161,7 +162,7 @@ final class MatVersion {
 					} else {
 						map = Xml.toBase( "versionUpdate3",
 								Transfer.wrapCopier( rs.getBytes( 2 ) ),
-								Engine.CHARSET_UTF8,
+								StandardCharsets.UTF_8,
 								null,
 								server.getStorageExternalizer(),
 								null );

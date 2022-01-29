@@ -3,6 +3,7 @@
  */
 package ru.myx.xstore.s2.jdbc;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -47,7 +48,7 @@ final class MatData {
 			case TYPE_MULTI_UNKNOWN :
 			case TYPE_SIMPLE_SMALL :
 			case TYPE_MULTI_SMALL :
-				return Xml.toBase("dataMaterialize", data, Engine.CHARSET_UTF8, null, server.getStorageExternalizer(), attachment);
+				return Xml.toBase("dataMaterialize", data, StandardCharsets.UTF_8, null, server.getStorageExternalizer(), attachment);
 			default :
 				throw new RuntimeException("Unknown data type: " + type);
 		}
@@ -64,7 +65,7 @@ final class MatData {
 			}
 		} else {
 			final StoreInfo attachment = new StoreInfo(conn, objId);
-			final byte[] bytes = Xml.toXmlString("data", data, false, server.getStorageExternalizer(), attachment, 512).getBytes(Engine.CHARSET_UTF8);
+			final byte[] bytes = Xml.toXmlString("data", data, false, server.getStorageExternalizer(), attachment, 512).getBytes(StandardCharsets.UTF_8);
 			if (bytes.length <= 4096) {
 				ps.setInt(index + 0, MatData.TYPE_SIMPLE_SMALL);
 			} else {
@@ -414,7 +415,7 @@ final class MatData {
 					if (intDataType == MatData.TYPE_EMPTY) {
 						map = BaseObject.UNDEFINED;
 					} else {
-						map = Xml.toBase("dataUpdate3", Transfer.wrapCopier(rs.getBytes(2)), Engine.CHARSET_UTF8, null, server.getStorageExternalizer(), null);
+						map = Xml.toBase("dataUpdate3", Transfer.wrapCopier(rs.getBytes(2)), StandardCharsets.UTF_8, null, server.getStorageExternalizer(), null);
 					}
 				} else {
 					return;

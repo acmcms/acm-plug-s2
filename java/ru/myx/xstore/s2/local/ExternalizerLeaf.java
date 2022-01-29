@@ -6,6 +6,7 @@ package ru.myx.xstore.s2.local;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import ru.myx.ae3.Engine;
@@ -141,7 +142,7 @@ final class ExternalizerLeaf {
 	private final void putExternal(final String identifier, final Object object) throws Exception {
 		
 		if (object.getClass() == String.class) {
-			this.putExternal(identifier, "text/plain", Transfer.wrapCopier(((String) object).getBytes(Engine.CHARSET_UTF8)));
+			this.putExternal(identifier, "text/plain", Transfer.wrapCopier(((String) object).getBytes(StandardCharsets.UTF_8)));
 			return;
 		}
 		if (object instanceof byte[]) {
@@ -159,7 +160,7 @@ final class ExternalizerLeaf {
 		if (object instanceof Map<?, ?>) {
 			final Map<String, Object> map = Convert.Any.toAny(object);
 			final String xml = Xml.toXmlString("map", Base.fromMap(map), false);
-			this.putExternal(identifier, "text/xml", Transfer.wrapCopier(xml.getBytes(Engine.CHARSET_UTF8)));
+			this.putExternal(identifier, "text/xml", Transfer.wrapCopier(xml.getBytes(StandardCharsets.UTF_8)));
 			return;
 		}
 		if (object instanceof BaseMessage) {

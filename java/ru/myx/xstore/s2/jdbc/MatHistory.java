@@ -5,6 +5,7 @@
  */
 package ru.myx.xstore.s2.jdbc;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -133,7 +134,7 @@ final class MatHistory {
 				} else {
 					map = Xml.toBase( "historyUpdate3",
 							Transfer.wrapCopier( rs.getBytes( 2 ) ),
-							Engine.CHARSET_UTF8,
+							StandardCharsets.UTF_8,
 							null,
 							server.getStorageExternalizer(),
 							null );
