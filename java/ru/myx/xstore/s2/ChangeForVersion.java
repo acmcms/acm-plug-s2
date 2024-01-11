@@ -25,14 +25,11 @@ import ru.myx.ae3.base.BaseObject;
 import ru.myx.ae3.exec.Exec;
 import ru.myx.ae3.help.Create;
 
-/**
- * @author myx
- * 
+/** @author myx
+ *
  *         To change the template for this generated type comment go to
- *         Window&gt;Preferences&gt;Java&gt;Code Generation&gt;Code and Comments
- */
+ *         Window&gt;Preferences&gt;Java&gt;Code Generation&gt;Code and Comments */
 class ChangeForVersion extends ChangeAbstract {
-	
 	
 	private Set<String> aliasAdd = null;
 	
@@ -77,6 +74,7 @@ class ChangeForVersion extends ChangeAbstract {
 	private List<ChangeNested> children = null;
 	
 	ChangeForVersion(final CurrentStorage storage, final EntryImpl entry, final String versionId, final BaseLink objectLink, final BaseObject objectData) {
+		
 		this.storage = storage;
 		this.entry = entry;
 		this.versionId = versionId;
@@ -104,7 +102,6 @@ class ChangeForVersion extends ChangeAbstract {
 	@Override
 	public void aliasAdd(final String alias) {
 		
-		
 		if (this.aliasAdd == null) {
 			this.aliasAdd = Create.tempSet();
 		}
@@ -117,7 +114,6 @@ class ChangeForVersion extends ChangeAbstract {
 	@Override
 	public void aliasRemove(final String alias) {
 		
-		
 		if (this.aliasRemove == null) {
 			this.aliasRemove = Create.tempSet();
 		}
@@ -129,7 +125,6 @@ class ChangeForVersion extends ChangeAbstract {
 	
 	@Override
 	public void commit() {
-		
 		
 		final Transaction transaction = this.storage.createTransaction();
 		try {
@@ -282,7 +277,6 @@ class ChangeForVersion extends ChangeAbstract {
 	@Override
 	public BaseChange createChange(final BaseEntry<?> entry) {
 		
-		
 		if (entry == null) {
 			return null;
 		}
@@ -302,7 +296,6 @@ class ChangeForVersion extends ChangeAbstract {
 	@Override
 	public BaseChange createChild() {
 		
-		
 		if (this.children == null) {
 			synchronized (this) {
 				if (this.children == null) {
@@ -315,7 +308,6 @@ class ChangeForVersion extends ChangeAbstract {
 	
 	@Override
 	public final void delete() {
-		
 		
 		this.entry.getType().onBeforeDelete(this.entry);
 		final Transaction transaction = this.storage.createTransaction();
@@ -337,7 +329,6 @@ class ChangeForVersion extends ChangeAbstract {
 	@Override
 	public final void delete(final boolean soft) {
 		
-		
 		this.entry.getType().onBeforeDelete(this.entry);
 		final Transaction transaction = this.storage.createTransaction();
 		try {
@@ -358,13 +349,11 @@ class ChangeForVersion extends ChangeAbstract {
 	@Override
 	public BaseObject getData() {
 		
-		
 		return this.data;
 	}
 	
 	@Override
 	public String getGuid() {
-		
 		
 		return this.entry.getGuid();
 	}
@@ -372,13 +361,11 @@ class ChangeForVersion extends ChangeAbstract {
 	@Override
 	public BaseHistory[] getHistory() {
 		
-		
 		return this.entry.getHistory();
 	}
 	
 	@Override
 	public BaseChange getHistorySnapshot(final String historyId) {
-		
 		
 		final BaseEntry<?> entry = this.entry.getHistorySnapshot(historyId);
 		if (entry == null) {
@@ -397,13 +384,11 @@ class ChangeForVersion extends ChangeAbstract {
 	@Override
 	public String getLinkedIdentity() {
 		
-		
 		return this.entry.getLinkedIdentity();
 	}
 	
 	@Override
 	public final String getLocationControl() {
-		
 		
 		final StorageImpl parent = this.getStorageImpl();
 		if (this.getGuid().equals(parent.getStorage().getRootIdentifier())) {
@@ -429,7 +414,6 @@ class ChangeForVersion extends ChangeAbstract {
 	@Override
 	public BaseObject getParentalData() {
 		
-		
 		final BaseEntry<?> parent = this.entry.getParent();
 		return parent == null
 			? null
@@ -439,13 +423,11 @@ class ChangeForVersion extends ChangeAbstract {
 	@Override
 	public String getParentGuid() {
 		
-		
 		return this.entry.getParentGuid();
 	}
 	
 	@Override
 	protected StorageImpl getPlugin() {
-		
 		
 		return this.entry.getStorageImpl();
 	}
@@ -453,13 +435,10 @@ class ChangeForVersion extends ChangeAbstract {
 	@Override
 	public BaseSchedule getSchedule() {
 		
-		
 		return new AbstractSchedule(false, this.entry.getSchedule()) {
-			
 			
 			@Override
 			public void commit() {
-				
 				
 				ChangeForVersion.this.changeSchedule = this;
 			}
@@ -469,20 +448,16 @@ class ChangeForVersion extends ChangeAbstract {
 	@Override
 	public StorageImpl getStorageImpl() {
 		
-		
 		return this.entry.getStorageImpl();
 	}
 	
 	@Override
 	public BaseSync getSynchronization() {
 		
-		
 		return new AbstractSync(this.storage.getSynchronizer().createChange(this.getGuid())) {
-			
 			
 			@Override
 			public void commit() {
-				
 				
 				ChangeForVersion.this.changeSync = this;
 			}
@@ -492,13 +467,32 @@ class ChangeForVersion extends ChangeAbstract {
 	@Override
 	public String getVersionId() {
 		
-		
 		return this.versionId;
 	}
 	
 	@Override
-	public final void segregate() {
+	public void nestUnlink(final BaseEntry<?> entry, final boolean soft) {
 		
+		if (entry == null) {
+			return;
+		}
+		if (entry.getClass() != EntryImpl.class || entry.getStorageImpl() != this.entry.getStorageImpl()) {
+			entry.createChange().unlink(soft);
+			return;
+		}
+		if (this.children == null) {
+			synchronized (this) {
+				if (this.children == null) {
+					this.children = new ArrayList<>();
+				}
+			}
+		}
+		this.children.add(new ChangeDoDelete((EntryImpl) entry, soft));
+		return;
+	}
+	
+	@Override
+	public final void segregate() {
 		
 		throw new UnsupportedOperationException("'segregate' is unsupported on non-commited entries!");
 	}
@@ -506,20 +500,17 @@ class ChangeForVersion extends ChangeAbstract {
 	@Override
 	public void setCommitActive() {
 		
-		
 		this.commitActive = true;
 	}
 	
 	@Override
 	public void setCommitLogged() {
 		
-		
 		this.commitLogged = true;
 	}
 	
 	@Override
 	public void setCreateLinkedIn(final BaseEntry<?> folder) {
-		
 		
 		if (this.linkedIn == null) {
 			this.linkedIn = Create.tempSet();
@@ -530,7 +521,6 @@ class ChangeForVersion extends ChangeAbstract {
 	@Override
 	public void setCreateLinkedIn(final BaseEntry<?> folder, final String key) {
 		
-		
 		if (this.linkedIn == null) {
 			this.linkedIn = Create.tempSet();
 		}
@@ -540,13 +530,11 @@ class ChangeForVersion extends ChangeAbstract {
 	@Override
 	public void setCreateLinkedWith(final BaseEntry<?> entry) {
 		
-		
 		throw new UnsupportedOperationException("Only new uncommited objects can be linked!");
 	}
 	
 	@Override
 	public void setCreateLocal(final boolean local) {
-		
 		
 		this.local = local;
 	}
@@ -554,13 +542,11 @@ class ChangeForVersion extends ChangeAbstract {
 	@Override
 	public void setParentGuid(final String parentGuid) {
 		
-		
 		this.parentGuid = parentGuid;
 	}
 	
 	@Override
 	public final void unlink() {
-		
 		
 		this.entry.getType().onBeforeDelete(this.entry);
 		final Transaction transaction = this.storage.createTransaction();
@@ -581,7 +567,6 @@ class ChangeForVersion extends ChangeAbstract {
 	
 	@Override
 	public final void unlink(final boolean soft) {
-		
 		
 		this.entry.getType().onBeforeDelete(this.entry);
 		final Transaction transaction = this.storage.createTransaction();

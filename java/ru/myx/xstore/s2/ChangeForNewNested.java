@@ -25,15 +25,12 @@ import ru.myx.ae3.base.BaseObject;
 import ru.myx.ae3.exec.Exec;
 import ru.myx.ae3.help.Create;
 
-/**
- * @author myx
- * 
+/** @author myx
+ *
  *         To change the template for this generated type comment go to
- *         Window&gt;Preferences&gt;Java&gt;Code Generation&gt;Code and Comments
- */
+ *         Window&gt;Preferences&gt;Java&gt;Code Generation&gt;Code and Comments */
 class ChangeForNewNested extends ChangeAbstract implements ChangeNested {
-	
-	
+
 	private final BaseChange change;
 	
 	private final List<ChangeNested> target;
@@ -71,6 +68,7 @@ class ChangeForNewNested extends ChangeAbstract implements ChangeNested {
 			final CurrentStorage storage,
 			final String parentGuid,
 			final String guid) {
+
 		this.change = change;
 		this.target = target;
 		this.parent = parent;
@@ -81,8 +79,7 @@ class ChangeForNewNested extends ChangeAbstract implements ChangeNested {
 	
 	@Override
 	public void aliasAdd(final String alias) {
-		
-		
+
 		if (this.aliasAdd == null) {
 			this.aliasAdd = Create.tempSet();
 		}
@@ -91,8 +88,7 @@ class ChangeForNewNested extends ChangeAbstract implements ChangeNested {
 	
 	@Override
 	public void aliasRemove(final String alias) {
-		
-		
+
 		if (this.aliasAdd != null) {
 			this.aliasAdd.remove(alias);
 		}
@@ -100,15 +96,13 @@ class ChangeForNewNested extends ChangeAbstract implements ChangeNested {
 	
 	@Override
 	public void commit() {
-		
-		
+
 		this.target.add(this);
 	}
 	
 	@Override
 	public BaseChange createChange(final BaseEntry<?> entry) {
-		
-		
+
 		if (entry == null) {
 			return null;
 		}
@@ -124,11 +118,10 @@ class ChangeForNewNested extends ChangeAbstract implements ChangeNested {
 		}
 		return new ChangeForEntryNested(this.children, this.storage, (EntryImpl) entry);
 	}
-	
+
 	@Override
 	public BaseChange createChild() {
-		
-		
+
 		if (this.children == null) {
 			synchronized (this) {
 				if (this.children == null) {
@@ -138,46 +131,40 @@ class ChangeForNewNested extends ChangeAbstract implements ChangeNested {
 		}
 		return new ChangeForNewNested(this, this.children, this.parent, this.storage, this.guid, Engine.createGuid());
 	}
-	
+
 	@Override
 	public final void delete() {
-		
-		
+
 		this.delete(false);
 	}
 	
 	@Override
 	public final void delete(final boolean soft) {
-		
-		
+
 		throw new UnsupportedOperationException("'delete' is unsupported on non-commited entries!");
 	}
 	
 	@Override
 	public BaseObject getData() {
-		
-		
+
 		return this.data;
 	}
 	
 	@Override
 	public String getGuid() {
-		
-		
+
 		return this.guid;
 	}
 	
 	@Override
 	public String getLinkedIdentity() {
-		
-		
+
 		return null;
 	}
 	
 	@Override
 	public final String getLocationControl() {
-		
-		
+
 		final StorageImpl parent = this.getStorageImpl();
 		if (this.getGuid().equals(parent.getStorage().getRootIdentifier())) {
 			return parent.getLocationControl();
@@ -201,36 +188,30 @@ class ChangeForNewNested extends ChangeAbstract implements ChangeNested {
 	
 	@Override
 	public BaseObject getParentalData() {
-		
-		
+
 		return new BaseNativeObject(this.change.getData());
 	}
 	
 	@Override
 	public String getParentGuid() {
-		
-		
+
 		return this.change.getGuid();
 	}
 	
 	@Override
 	protected StorageImpl getPlugin() {
-		
-		
+
 		return this.parent;
 	}
 	
 	@Override
 	public BaseSchedule getSchedule() {
-		
-		
+
 		return new AbstractSchedule() {
-			
-			
+
 			@Override
 			public void commit() {
-				
-				
+
 				ChangeForNewNested.this.changeSchedule = this;
 			}
 		};
@@ -238,22 +219,18 @@ class ChangeForNewNested extends ChangeAbstract implements ChangeNested {
 	
 	@Override
 	public StorageImpl getStorageImpl() {
-		
-		
+
 		return this.parent;
 	}
 	
 	@Override
 	public BaseSync getSynchronization() {
-		
-		
+
 		return new AbstractSync() {
-			
-			
+
 			@Override
 			public void commit() {
-				
-				
+
 				ChangeForNewNested.this.changeSync = this;
 			}
 		};
@@ -261,15 +238,34 @@ class ChangeForNewNested extends ChangeAbstract implements ChangeNested {
 	
 	@Override
 	public String getVersionId() {
-		
-		
+
 		return this.versionId;
 	}
 	
 	@Override
+	public void nestUnlink(final BaseEntry<?> entry, final boolean soft) {
+
+		if (entry == null) {
+			return;
+		}
+		if (entry.getClass() != EntryImpl.class || entry.getStorageImpl() != this.parent) {
+			entry.createChange().unlink(soft);
+			return;
+		}
+		if (this.children == null) {
+			synchronized (this) {
+				if (this.children == null) {
+					this.children = new ArrayList<>();
+				}
+			}
+		}
+		this.children.add(new ChangeDoDelete((EntryImpl) entry, soft));
+		return;
+	}
+	
+	@Override
 	public boolean realCommit(final Transaction transaction) throws Throwable {
-		
-		
+
 		String typeName = Base.getString(this.data, "$type", null);
 		if (typeName == null) {
 			typeName = Context.getServer(Exec.currentProcess()).getTypes().getTypeNameDefault();
@@ -374,15 +370,13 @@ class ChangeForNewNested extends ChangeAbstract implements ChangeNested {
 	
 	@Override
 	public final void segregate() {
-		
-		
+
 		throw new UnsupportedOperationException("'segregate' is unsupported on non-commited entries!");
 	}
 	
 	@Override
 	public void setCreateLinkedIn(final BaseEntry<?> folder) {
-		
-		
+
 		if (this.linkedIn == null) {
 			this.linkedIn = Create.tempSet();
 		}
@@ -391,8 +385,7 @@ class ChangeForNewNested extends ChangeAbstract implements ChangeNested {
 	
 	@Override
 	public void setCreateLinkedIn(final BaseEntry<?> folder, final String key) {
-		
-		
+
 		if (this.linkedIn == null) {
 			this.linkedIn = Create.tempSet();
 		}
@@ -401,36 +394,31 @@ class ChangeForNewNested extends ChangeAbstract implements ChangeNested {
 	
 	@Override
 	public void setCreateLinkedWith(final BaseEntry<?> entry) {
-		
-		
+
 		this.linkedWith = entry;
 	}
 	
 	@Override
 	public void setCreateLocal(final boolean local) {
-		
-		
+
 		this.local = local;
 	}
 	
 	@Override
 	public void setParentGuid(final String parentGuid) {
-		
-		
+
 		this.parentGuid = parentGuid;
 	}
 	
 	@Override
 	public final void unlink() {
-		
-		
+
 		this.unlink(false);
 	}
 	
 	@Override
 	public final void unlink(final boolean soft) {
-		
-		
+
 		throw new UnsupportedOperationException("'unlink' is unsupported on non-commited entries!");
 	}
 }

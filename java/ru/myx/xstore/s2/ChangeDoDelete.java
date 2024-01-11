@@ -1,30 +1,34 @@
 /**
- * 
+ *
  */
 package ru.myx.xstore.s2;
 
-/**
- * @author myx
- * 
- */
+/** @author myx */
 final class ChangeDoDelete implements ChangeNested {
-	private final EntryImpl	entry;
 	
-	private final boolean	soft;
-	
-	/**
-	 * @param entry
-	 * @param soft
-	 */
+	private final EntryImpl entry;
+
+	private final boolean soft;
+
+	/** @param entry
+	 * @param soft */
 	ChangeDoDelete(final EntryImpl entry, final boolean soft) {
+		
 		this.entry = entry;
 		this.soft = soft;
 	}
-	
+
 	@Override
 	public boolean realCommit(final Transaction transaction) throws Throwable {
-		this.entry.getType().onBeforeDelete( this.entry );
-		transaction.delete( this.entry.getOriginalLink(), this.soft );
+		
+		try {
+			this.entry.getType().onBeforeDelete(this.entry);
+		} catch (final Throwable t) {
+			if (!this.soft) {
+				throw t;
+			}
+		}
+		transaction.delete(this.entry.getOriginalLink(), this.soft);
 		// TODO А должно без этого работать!
 		final EntryImpl invalidator = (EntryImpl) this.entry.getParent();
 		if (invalidator != null) {
@@ -32,5 +36,5 @@ final class ChangeDoDelete implements ChangeNested {
 		}
 		return true;
 	}
-	
+
 }
