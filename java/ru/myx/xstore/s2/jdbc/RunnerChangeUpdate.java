@@ -41,25 +41,25 @@ import ru.myx.xstore.s2.indexing.IndexingS2;
 
 /** @author myx */
 final class RunnerChangeUpdate implements Runnable, Runner {
-
+	
 	private static final String OWNER = "S2/UPDATE";
-
+	
 	private static final int LIMIT_BULK_TASKS = 32;
-
+	
 	private static final int LIMIT_BULK_UPGRADE = 16;
-
-	private static final long PERIOD_CUT_LOG = 1000L * 60L * 60L * 24L * 7L;
-
-	private static final long PERIOD_CUT_HISTORY = 30L * 1000L * 60L * 60L * 24L;
-
-	private static final long PERIOD_CUT_RECYCLED = 2L * 1000L * 60L * 60L * 24L * 7L;
-
+	
+	private static final long PERIOD_CUT_LOG = 60_000L * 60L * 24L * 7L;
+	
+	private static final long PERIOD_CUT_HISTORY = 30L * 60_000L * 60L * 24L;
+	
+	private static final long PERIOD_CUT_RECYCLED = 2L * 60_000L * 60L * 24L * 7L;
+	
 	private static final int SEQ_HIGH = 4255397;
-
+	
 	private static final Set<String> SYSTEM_KEYS = RunnerChangeUpdate.createSystemKeys();
-
+	
 	private static final Set<String> createSystemKeys() {
-
+		
 		final Set<String> result = Create.tempSet();
 		result.add("$key");
 		result.add("$title");
@@ -69,34 +69,34 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 		result.add("$owner");
 		return result;
 	}
-
+	
 	private static final String getEntryTypeName(final BaseLink link) {
-
+		
 		try {
 			return link.getTypeName();
 		} catch (final Throwable t) {
 			return null;
 		}
 	}
-
+	
 	private final ServerJdbc server;
-
+	
 	private final StorageLevel2 storage;
-
+	
 	private final IndexingS2 indexing;
-
+	
 	private final int indexingVersion;
-
+	
 	private boolean destroyed = false;
-
+	
 	RunnerChangeUpdate(final StorageLevel2 storage, final ServerJdbc server, final IndexingS2 indexing) {
-
+		
 		this.storage = storage;
 		this.server = server;
 		this.indexing = indexing;
 		this.indexingVersion = indexing.getVersion();
 	}
-
+	
 	private final boolean analyzeCreateSyncs(final Connection conn,
 			final int entryLuid,
 			final String entryGuid,
@@ -104,7 +104,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			final String parentGuid,
 			final String updateName,
 			final String taskName) throws Throwable {
-
+		
 		boolean heavyLoad = false;
 		final List<Map.Entry<String, String>> list = new ArrayList<>();
 		// Do synchronization
@@ -143,10 +143,10 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 		this.createSyncs(conn, list, entryGuid, parentGuid, taskName);
 		return heavyLoad;
 	}
-
+	
 	private final void createSyncs(final Connection conn, final List<Map.Entry<String, String>> created, final String entryGuid, final String parentGuid, final String taskName)
 			throws Throwable {
-
+		
 		for (final Map.Entry<String, String> item : created) {
 			final String newGuid = item.getKey();
 			final String cntLnkId = item.getValue();
@@ -174,9 +174,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private final void doClean(final Connection conn, final Map<String, Object> task) throws Throwable {
-
+		
 		final String guid = Convert.MapEntry.toString(task, "evtCmdGuid", "").trim();
 		final int luid = Convert.MapEntry.toInt(task, "evtCmdLuid", -1);
 		if (luid != -1) {
@@ -184,9 +184,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 		}
 		this.doUpdateObject(conn, guid);
 	}
-
+	
 	private final void doCleanAll(final Connection conn, final Map<String, Object> task) throws Throwable {
-
+		
 		final String guid = Convert.MapEntry.toString(task, "evtCmdGuid", "").trim();
 		final List<Object> linkData = new ArrayList<>();
 		try (final PreparedStatement ps = conn
@@ -207,15 +207,15 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 		}
 		this.doUpdateObject(conn, guid);
 	}
-
+	
 	private final void doCleanExtra(final Connection conn, final String objId) throws Exception {
-
+		
 		Report.event(RunnerChangeUpdate.OWNER, "CLEANING_EXTRA", "objId=" + objId);
 		MatExtra.unlink(this.server, conn, null, objId);
 	}
-
+	
 	private final void doCleanIndices(final Connection conn, final int lnkLuid) throws Exception {
-
+		
 		Report.event(RunnerChangeUpdate.OWNER, "CLEANING_INDEX", "luid=" + lnkLuid);
 		this.indexing.doDelete(conn, lnkLuid);
 		try (final PreparedStatement ps = conn.prepareStatement("DELETE FROM " + this.server.getTnIndexed() + " WHERE luid=?")) {
@@ -223,9 +223,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			ps.execute();
 		}
 	}
-
+	
 	private boolean doCleanStart(final Connection conn, final Map<String, Object> task) throws Throwable {
-
+		
 		final String lnkId = Convert.MapEntry.toString(task, "evtCmdGuid", "").trim();
 		final List<Object> items = new ArrayList<>();
 		this.fillTree(conn, items, lnkId);
@@ -236,9 +236,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 		}
 		return items.size() >= RunnerChangeUpdate.LIMIT_BULK_TASKS;
 	}
-
+	
 	private final boolean doCreateGlobal(final Connection conn, final Map<String, Object> task) throws Throwable {
-
+		
 		final String guid = Convert.MapEntry.toString(task, "evtCmdGuid", "").trim();
 		final LinkJdbc entry = MatLink.materialize(this.server, conn, guid);
 		if (entry != null) {
@@ -253,9 +253,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 		}
 		return false;
 	}
-
+	
 	private final boolean doCreateLocal(final Connection conn, final Map<String, Object> task) throws Throwable {
-
+		
 		final String guid = Convert.MapEntry.toString(task, "evtCmdGuid", "").trim();
 		final LinkJdbc entry = MatLink.materialize(this.server, conn, guid);
 		if (entry != null) {
@@ -266,9 +266,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 		}
 		return false;
 	}
-
+	
 	private void doDeleteItem(final Connection conn, final Map<String, Object> task) throws Throwable {
-
+		
 		final String objId = Convert.MapEntry.toString(task, "evtCmdGuid", "").trim();
 		final int lnkLuid = Convert.MapEntry.toInt(task, "evtCmdLuid", -1);
 		MatAlias.deleteOrMove(this.server, conn, lnkLuid);
@@ -276,9 +276,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 		this.doCleanIndices(conn, lnkLuid);
 		this.doUpdateObject(conn, objId);
 	}
-
+	
 	private final boolean doIndex(final Connection conn, final BaseLink entry, final int luid) throws Throwable {
-
+		
 		final int records;
 		{
 			final Set<String> hierarchy = Create.tempSet();
@@ -353,13 +353,13 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 		}
 		return records != -1;
 	}
-
+	
 	private void doMaintainClearDead(final Connection conn, final BaseObject settings) {
-
+		
 		final int lastVersion = Convert.MapEntry.toInt(settings, "runnerVersion", 0);
 		final long nextClean = Convert.MapEntry.toLong(settings, "deadCleanupDate", 0L);
 		if (lastVersion < this.getVersion() || nextClean < Engine.fastTime()) {
-			settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 1000L * 60L * 60L * 24L));
+			settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 60_000L * 60L * 24L));
 			try {
 				conn.setAutoCommit(false);
 				try {
@@ -372,7 +372,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 						// ignore
 					}
 					Report.exception(RunnerChangeUpdate.OWNER, "Unexpected exception while collecting garbage in storage", t);
-					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 1000L * 60L));
+					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 60_000L));
 				}
 				try {
 					this.doMaintainClearDeadSynchronizations(conn);
@@ -384,7 +384,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 						// ignore
 					}
 					Report.exception(RunnerChangeUpdate.OWNER, "Unexpected exception while collecting garbage in storage", t);
-					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 1000L * 60L));
+					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 60_000L));
 				}
 				try {
 					this.doMaintainClearDeadLinks(conn, settings);
@@ -396,7 +396,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 						// ignore
 					}
 					Report.exception(RunnerChangeUpdate.OWNER, "Unexpected exception while collecting garbage in storage", t);
-					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 1000L * 60L));
+					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 60_000L));
 				}
 				try {
 					this.doMaintainClearDeadRecycled(conn, settings);
@@ -408,7 +408,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 						// ignore
 					}
 					Report.exception(RunnerChangeUpdate.OWNER, "Unexpected exception while collecting garbage in storage", t);
-					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 1000L * 60L));
+					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 60_000L));
 				}
 				try {
 					this.doMaintainClearDeadAliases(conn, settings);
@@ -420,7 +420,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 						// ignore
 					}
 					Report.exception(RunnerChangeUpdate.OWNER, "Unexpected exception while collecting garbage in storage", t);
-					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 1000L * 60L));
+					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 60_000L));
 				}
 				try {
 					this.doMaintainClearDeadObjects(conn, settings);
@@ -432,7 +432,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 						// ignore
 					}
 					Report.exception(RunnerChangeUpdate.OWNER, "Unexpected exception while collecting garbage in storage", t);
-					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 1000L * 60L));
+					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 60_000L));
 				}
 				try {
 					this.doMaintainClearDeadObjectHistories(conn, settings);
@@ -444,7 +444,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 						// ignore
 					}
 					Report.exception(RunnerChangeUpdate.OWNER, "Unexpected exception while collecting garbage in storage", t);
-					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 1000L * 60L));
+					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 60_000L));
 				}
 				try {
 					this.doMaintainClearDeadObjectVersions(conn, settings);
@@ -456,7 +456,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 						// ignore
 					}
 					Report.exception(RunnerChangeUpdate.OWNER, "Unexpected exception while collecting garbage in storage", t);
-					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 1000L * 60L));
+					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 60_000L));
 				}
 				try {
 					this.doMaintainClearDeadExtraLinksToObjects(conn, settings);
@@ -468,7 +468,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 						// ignore
 					}
 					Report.exception(RunnerChangeUpdate.OWNER, "Unexpected exception while collecting garbage in storage", t);
-					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 1000L * 60L));
+					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 60_000L));
 				}
 				try {
 					this.doMaintainClearDeadExtraLinksToExtras(conn, settings);
@@ -480,7 +480,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 						// ignore
 					}
 					Report.exception(RunnerChangeUpdate.OWNER, "Unexpected exception while collecting garbage in storage", t);
-					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 1000L * 60L));
+					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 60_000L));
 				}
 				try {
 					this.doMaintainClearDeadExtra(conn, settings);
@@ -492,7 +492,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 						// ignore
 					}
 					Report.exception(RunnerChangeUpdate.OWNER, "Unexpected exception while collecting garbage in storage", t);
-					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 1000L * 60L));
+					settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 60_000L));
 				}
 			} catch (final Throwable t) {
 				try {
@@ -501,7 +501,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 					// ignore
 				}
 				Report.exception(RunnerChangeUpdate.OWNER, "Unexpected exception while collecting garbage in storage", t);
-				settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 1000L * 60L));
+				settings.baseDefine("deadCleanupDate", Base.forDateMillis(Engine.fastTime() + 30L * 60_000L));
 			} finally {
 				try {
 					conn.setAutoCommit(true);
@@ -513,9 +513,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			this.storage.commitProtectedSettings();
 		}
 	}
-
+	
 	private void doMaintainClearDeadAliases(final Connection conn, final BaseObject settings) {
-
+		
 		try {
 			final List<String> links;
 			{
@@ -559,11 +559,11 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			throw new RuntimeException(e);
 		}
 	}
-
+	
 	/* SELECT a.alId, a.alLnkId FROM s2Aliases a LEFT OUTER JOIN s2Tree t ON a.alLnkId=t.lnkId LEFT
 	 * OUTER JOIN s2RecycledTree r ON a.alLnkId=r.lnkId WHERE t.lnkId is NULL AND r.lnkId is NULL */
 	private List<String> doMaintainClearDeadAliasesGetThem0(final Connection conn) throws SQLException {
-
+		
 		final String query = new StringBuilder().append("SELECT a.alId,a.alLnkId FROM ").append(this.server.getTnAliases()).append(" a LEFT OUTER JOIN ")
 				.append(this.server.getTnTree()).append(" t ON a.alLnkId=t.lnkId LEFT OUTER JOIN ").append(this.server.getTnRecycledTree())
 				.append(" r ON a.alLnkId=r.lnkId WHERE t.lnkId is NULL AND r.lnkId is NULL").toString();
@@ -583,9 +583,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private List<String> doMaintainClearDeadAliasesGetThem1(final Connection conn) throws SQLException {
-
+		
 		final String query = new StringBuilder().append("SELECT a.alId,a.alLnkId FROM ").append(this.server.getTnAliases()).append(" a, ").append(this.server.getTnTree())
 				.append(" t, ").append(this.server.getTnRecycledTree()).append(" r WHERE a.alLnkId=t.lnkId(+) AND a.alLnkId=r.lnkId(+) AND t.lnkId is NULL AND r.lnkId is NULL")
 				.toString();
@@ -603,9 +603,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private void doMaintainClearDeadExtra(final Connection conn, final BaseObject settings) {
-
+		
 		try {
 			final List<String> objects;
 			{
@@ -650,15 +650,15 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			throw new RuntimeException(e);
 		}
 	}
-
+	
 	/* SELECT e.recId FROM s2Extra e LEFT OUTER JOIN s2ExtraLink l ON e.recId = l.recId WHERE
 	 * e.recDate < GETDATE() GROUP BY e.recId HAVING count(l.recId) = 0 */
 	private List<String> doMaintainClearDeadExtraGetThem0(final Connection conn) throws SQLException {
-
+		
 		final String query = new StringBuilder().append("SELECT e.recId FROM ").append(this.server.getTnExtra()).append(" e LEFT OUTER JOIN ").append(this.server.getTnExtraLink())
 				.append(" l ON e.recId=l.recId WHERE e.recDate<? GROUP BY e.recId HAVING count(l.recId) = 0").toString();
 		try (final PreparedStatement ps = conn.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
-			ps.setTimestamp(1, new Timestamp(Engine.fastTime() - 1000L * 60L * 60L));
+			ps.setTimestamp(1, new Timestamp(Engine.fastTime() - 60_000L * 60L));
 			try (final ResultSet rs = ps.executeQuery()) {
 				if (rs.next()) {
 					final List<String> result = new ArrayList<>();
@@ -671,13 +671,13 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private List<String> doMaintainClearDeadExtraGetThem1(final Connection conn) throws SQLException {
-
+		
 		final String query = new StringBuilder().append("SELECT e.recId FROM ").append(this.server.getTnExtra()).append(" e, ").append(this.server.getTnExtraLink())
 				.append(" l WHERE e.recDate<? AND e.recId=l.recId(+) GROUP BY e.recId HAVING count(l.recId) = 0").toString();
 		try (final PreparedStatement ps = conn.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
-			ps.setTimestamp(1, new Timestamp(Engine.fastTime() - 1000L * 60L * 60L));
+			ps.setTimestamp(1, new Timestamp(Engine.fastTime() - 60_000L * 60L));
 			try (final ResultSet rs = ps.executeQuery()) {
 				if (rs.next()) {
 					final List<String> result = new ArrayList<>();
@@ -690,9 +690,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private void doMaintainClearDeadExtraLinksToExtras(final Connection conn, final BaseObject settings) {
-
+		
 		try {
 			final List<String> objects;
 			{
@@ -734,17 +734,17 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			throw new RuntimeException(e);
 		}
 	}
-
+	
 	/* SELECT l.recId FROM s2ExtraLink l LEFT OUTER JOIN s2Extra e ON l.recId = e.recId LEFT OUTER
 	 * JOIN s2Objects o ON l.objId = o.objId WHERE (o.objCreated is NULL OR o.objCreated <
 	 * GETDATE()) AND e.recId is NULL GROUP BY l.recId */
 	private List<String> doMaintainClearDeadExtraLinksToExtrasGetThem0(final Connection conn) throws SQLException {
-
+		
 		final String query = new StringBuilder().append("SELECT l.recId FROM ").append(this.server.getTnExtraLink()).append(" l LEFT OUTER JOIN ").append(this.server.getTnExtra())
 				.append(" e ON l.recId=e.recId LEFT OUTER JOIN ").append(this.server.getTnObjects())
 				.append(" o ON l.objId=o.objId WHERE (o.objCreated is NULL OR o.objCreated<?) AND e.recId is NULL GROUP BY l.recId").toString();
 		try (final PreparedStatement ps = conn.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
-			ps.setTimestamp(1, new Timestamp(Engine.fastTime() - 1000L * 60L * 60L));
+			ps.setTimestamp(1, new Timestamp(Engine.fastTime() - 60_000L * 60L));
 			try (final ResultSet rs = ps.executeQuery()) {
 				if (rs.next()) {
 					final List<String> result = new ArrayList<>();
@@ -757,14 +757,14 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private List<String> doMaintainClearDeadExtraLinksToExtrasGetThem1(final Connection conn) throws SQLException {
-
+		
 		final String query = new StringBuilder().append("SELECT l.recId FROM ").append(this.server.getTnExtraLink()).append(" l, ").append(this.server.getTnExtra()).append(" e, ")
 				.append(this.server.getTnObjects())
 				.append(" o WHERE l.recId=e.recId(+) AND l.objId=o.objId(+) AND (o.objCreated is NULL OR o.objCreated<?) AND e.recId is NULL GROUP BY l.recId").toString();
 		try (final PreparedStatement ps = conn.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
-			ps.setTimestamp(1, new Timestamp(Engine.fastTime() - 1000L * 60L * 60L));
+			ps.setTimestamp(1, new Timestamp(Engine.fastTime() - 60_000L * 60L));
 			try (final ResultSet rs = ps.executeQuery()) {
 				if (rs.next()) {
 					final List<String> result = new ArrayList<>();
@@ -777,9 +777,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private void doMaintainClearDeadExtraLinksToObjects(final Connection conn, final BaseObject settings) {
-
+		
 		try {
 			final List<String> objects;
 			{
@@ -821,7 +821,7 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			throw new RuntimeException(e);
 		}
 	}
-
+	
 	/* SELECT l.objId FROM s2ExtraLink l LEFT OUTER JOIN s2Objects o ON l.objId = o.objId LEFT OUTER
 	 * JOIN s2ObjectHistory h ON l.objId = h.hsId LEFT OUTER JOIN s2ObjectVersions v ON l.objId =
 	 * v.vrId LEFT OUTER JOIN s2Extra e ON l.recId = e.recId WHERE (e.recDate is NULL OR e.recDate <
@@ -830,14 +830,14 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 	 * s2Extra e ON l.recId = e.recId WHERE (e.recDate is NULL OR e.recDate < GETDATE()) AND o.objId
 	 * is NULL GROUP BY l.objId */
 	private List<String> doMaintainClearDeadExtraLinksToObjectsGetThem0(final Connection conn) throws SQLException {
-
+		
 		final String query = new StringBuilder().append("SELECT l.objId FROM ").append(this.server.getTnExtraLink()).append(" l LEFT OUTER JOIN ")
 				.append(this.server.getTnObjects()).append(" o ON l.objId=o.objId LEFT OUTER JOIN ").append(this.server.getTnObjectHistory())
 				.append(" h ON l.objId=h.hsId LEFT OUTER JOIN ").append(this.server.getTnObjectVersions()).append(" v ON l.objId=v.vrId LEFT OUTER JOIN ")
 				.append(this.server.getTnExtra())
 				.append(" e ON l.recId=e.recId WHERE (e.recDate is NULL OR e.recDate<?) AND o.objId is NULL AND h.hsId is NULL AND v.vrId is NULL GROUP BY l.objId").toString();
 		try (final PreparedStatement ps = conn.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
-			ps.setTimestamp(1, new Timestamp(Engine.fastTime() - 1000L * 60L * 60L));
+			ps.setTimestamp(1, new Timestamp(Engine.fastTime() - 60_000L * 60L));
 			try (final ResultSet rs = ps.executeQuery()) {
 				if (rs.next()) {
 					final List<String> result = new ArrayList<>();
@@ -850,16 +850,16 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private List<String> doMaintainClearDeadExtraLinksToObjectsGetThem1(final Connection conn) throws SQLException {
-
+		
 		final String query = new StringBuilder().append("SELECT l.objId FROM ").append(this.server.getTnExtraLink()).append(" l, ").append(this.server.getTnObjects())
 				.append(" o, ").append(this.server.getTnObjectHistory()).append(" h, ").append(this.server.getTnObjectVersions()).append(" v, ").append(this.server.getTnExtra())
 				.append(
 						" e WHERE l.objId=o.objId(+) AND l.objId=h.hsId(+) AND l.objId=v.vrId(+) AND l.recId=e.recId(+) AND (e.recDate is NULL OR e.recDate<?) AND o.objId is NULL AND h.hsId is NULL AND v.vrId is NULL GROUP BY l.objId")
 				.toString();
 		try (final PreparedStatement ps = conn.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
-			ps.setTimestamp(1, new Timestamp(Engine.fastTime() - 1000L * 60L * 60L));
+			ps.setTimestamp(1, new Timestamp(Engine.fastTime() - 60_000L * 60L));
 			try (final ResultSet rs = ps.executeQuery()) {
 				if (rs.next()) {
 					final List<String> result = new ArrayList<>();
@@ -872,11 +872,11 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	/* SELECT h.objId FROM s2ObjectHistory h LEFT OUTER JOIN s2Objects o ON h.objId = o.objId WHERE
 	 * o.objId is NULL GROUP BY h.objId */
 	private List<String> doMaintainClearDeadHistoryGetThem0(final Connection conn) throws SQLException {
-
+		
 		final String query = new StringBuilder().append("SELECT h.objId FROM ").append(this.server.getTnObjectHistory()).append(" h LEFT OUTER JOIN ")
 				.append(this.server.getTnObjects()).append(" o ON h.objId=o.objId WHERE o.objId is NULL GROUP BY h.objId").toString();
 		try (final PreparedStatement ps = conn.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
@@ -892,9 +892,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private List<String> doMaintainClearDeadHistoryGetThem1(final Connection conn) throws SQLException {
-
+		
 		final String query = new StringBuilder().append("SELECT h.objId FROM ").append(this.server.getTnObjectHistory()).append(" h, ").append(this.server.getTnObjects())
 				.append(" o WHERE h.objId=o.objId(+) AND o.objId is NULL GROUP BY h.objId").toString();
 		try (final PreparedStatement ps = conn.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
@@ -910,9 +910,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private void doMaintainClearDeadLinks(final Connection conn, final BaseObject settings) {
-
+		
 		try {
 			final List<Object> links;
 			{
@@ -957,12 +957,12 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			throw new RuntimeException(e);
 		}
 	}
-
+	
 	/* SELECT t1.lnkLuid, t1.objId FROM s2Tree t1 LEFT OUTER JOIN s2Tree t2 ON t1.cntLnkId=t2.lnkId
 	 * LEFT OUTER JOIN s2Objects o ON t1.objId=o.objId WHERE (t2.lnkId is NULL OR o.objId is NULL)
 	 * AND t1.cntLnkId != '*' */
 	private List<Object> doMaintainClearDeadLinksGetThem0(final Connection conn) throws SQLException {
-
+		
 		final String query = new StringBuilder().append("SELECT t1.lnkLuid,t1.objId FROM ").append(this.server.getTnTree()).append(" t1 LEFT OUTER JOIN ")
 				.append(this.server.getTnTree()).append(" t2 ON t1.cntLnkId=t2.lnkId LEFT OUTER JOIN ").append(this.server.getTnObjects())
 				.append(" o ON t1.objId=o.objId WHERE (t2.lnkId is NULL OR o.objId is NULL) AND t1.cntLnkId != '*'").toString();
@@ -980,9 +980,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private List<Object> doMaintainClearDeadLinksGetThem1(final Connection conn) throws SQLException {
-
+		
 		final String query = new StringBuilder().append("SELECT t1.lnkLuid,t1.objId FROM ").append(this.server.getTnTree()).append(" t1, ").append(this.server.getTnTree())
 				.append(" t2, ").append(this.server.getTnObjects())
 				.append(" o WHERE t1.cntLnkId=t2.lnkId(+) AND t1.objId=o.objId(+) AND (t2.lnkId is NULL OR o.objId is NULL) AND t1.cntLnkId != '*'").toString();
@@ -1000,9 +1000,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private void doMaintainClearDeadObjectHistories(final Connection conn, final BaseObject settings) {
-
+		
 		try {
 			try (final PreparedStatement ps = conn.prepareStatement("DELETE FROM " + this.server.getTnObjectHistory() + " WHERE hsDate<?")) {
 				ps.setTimestamp(1, new Timestamp(Engine.fastTime() - RunnerChangeUpdate.PERIOD_CUT_HISTORY));
@@ -1048,9 +1048,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			throw new RuntimeException(e);
 		}
 	}
-
+	
 	private void doMaintainClearDeadObjects(final Connection conn, final BaseObject settings) {
-
+		
 		try {
 			final List<String> objects;
 			{
@@ -1094,17 +1094,17 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			throw new RuntimeException(e);
 		}
 	}
-
+	
 	/* SELECT o.objId FROM s2Objects o LEFT OUTER JOIN s2Tree t ON o.objId = t.objId LEFT OUTER JOIN
 	 * s2RecycledTree r ON o.objId = r.objId WHERE o.objCreated < GETDATE() AND t.objId is NULL AND
 	 * r.objId is NULL */
 	private List<String> doMaintainClearDeadObjectsGetThem0(final Connection conn) throws SQLException {
-
+		
 		final String query = new StringBuilder().append("SELECT o.objId FROM ").append(this.server.getTnObjects()).append(" o LEFT OUTER JOIN ").append(this.server.getTnTree())
 				.append(" t ON o.objId=t.objId LEFT OUTER JOIN ").append(this.server.getTnRecycledTree())
 				.append(" r ON o.objId=r.objId WHERE o.objCreated<? AND t.objId is NULL AND r.objId is NULL").toString();
 		try (final PreparedStatement ps = conn.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
-			ps.setTimestamp(1, new Timestamp(Engine.fastTime() - 12L * 1000L * 60L * 60L));
+			ps.setTimestamp(1, new Timestamp(Engine.fastTime() - 12L * 60_000L * 60L));
 			try (final ResultSet rs = ps.executeQuery()) {
 				if (rs.next()) {
 					final List<String> result = new ArrayList<>();
@@ -1117,14 +1117,14 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private List<String> doMaintainClearDeadObjectsGetThem1(final Connection conn) throws SQLException {
-
+		
 		final String query = new StringBuilder().append("SELECT o.objId FROM ").append(this.server.getTnObjects()).append(" o, ").append(this.server.getTnTree()).append(" t, ")
 				.append(this.server.getTnRecycledTree()).append(" r WHERE o.objCreated<? AND o.objId=t.objId(+) AND o.objId=r.objId(+) AND t.objId is NULL AND r.objId is NULL")
 				.toString();
 		try (final PreparedStatement ps = conn.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
-			ps.setTimestamp(1, new Timestamp(Engine.fastTime() - 12L * 1000L * 60L * 60L));
+			ps.setTimestamp(1, new Timestamp(Engine.fastTime() - 12L * 60_000L * 60L));
 			try (final ResultSet rs = ps.executeQuery()) {
 				if (rs.next()) {
 					final List<String> result = new ArrayList<>();
@@ -1139,9 +1139,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private void doMaintainClearDeadObjectVersions(final Connection conn, final BaseObject settings) {
-
+		
 		try {
 			final List<String> objects;
 			{
@@ -1183,9 +1183,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			throw new RuntimeException(e);
 		}
 	}
-
+	
 	private void doMaintainClearDeadRecycled(final Connection conn, final BaseObject settings) {
-
+		
 		try {
 			try (final PreparedStatement ps = conn.prepareStatement("DELETE FROM " + this.server.getTnRecycled() + " WHERE delDate<?")) {
 				ps.setTimestamp(1, new Timestamp(Engine.fastTime() - RunnerChangeUpdate.PERIOD_CUT_RECYCLED));
@@ -1231,11 +1231,11 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			throw new RuntimeException(e);
 		}
 	}
-
+	
 	/* SELECT t.delId FROM s2RecycledTree t LEFT OUTER JOIN s2Recycled r ON t.delId=r.delRootId
 	 * WHERE r.delRootId is NULL GROUP BY t.delId */
 	private List<String> doMaintainClearDeadRecycledGetThem0(final Connection conn) throws SQLException {
-
+		
 		final String query = new StringBuilder().append("SELECT t.delId FROM ").append(this.server.getTnRecycledTree()).append(" t LEFT OUTER JOIN ")
 				.append(this.server.getTnRecycled()).append(" r ON t.delId=r.delRootId WHERE r.delRootId is NULL GROUP BY t.delId").toString();
 		try (final PreparedStatement ps = conn.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
@@ -1251,9 +1251,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private List<String> doMaintainClearDeadRecycledGetThem1(final Connection conn) throws SQLException {
-
+		
 		final String query = new StringBuilder().append("SELECT t.delId FROM ").append(this.server.getTnRecycledTree()).append(" t, ").append(this.server.getTnRecycled())
 				.append(" r WHERE t.delId=r.delRootId(+) AND r.delRootId is NULL GROUP BY t.delId").toString();
 		try (final PreparedStatement ps = conn.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
@@ -1269,9 +1269,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private void doMaintainClearDeadSynchronizations(final Connection conn) {
-
+		
 		try {
 			try (final Statement st = conn.createStatement()) {
 				{
@@ -1307,11 +1307,11 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			throw new RuntimeException(e);
 		}
 	}
-
+	
 	/* SELECT v.objId FROM s2ObjectVersions v LEFT OUTER JOIN s2Objects o ON v.objId = o.objId WHERE
 	 * o.objId is NULL GROUP BY v.objId */
 	private List<String> doMaintainClearDeadVersionsGetThem0(final Connection conn) throws SQLException {
-
+		
 		final String query = new StringBuilder().append("SELECT v.objId FROM ").append(this.server.getTnObjectVersions()).append(" v LEFT OUTER JOIN ")
 				.append(this.server.getTnObjects()).append(" o ON v.objId=o.objId WHERE o.objId is NULL GROUP BY v.objId").toString();
 		try (final PreparedStatement ps = conn.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
@@ -1327,9 +1327,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private List<String> doMaintainClearDeadVersionsGetThem1(final Connection conn) throws SQLException {
-
+		
 		final String query = new StringBuilder().append("SELECT v.objId FROM ").append(this.server.getTnObjectVersions()).append(" v, ").append(this.server.getTnObjects())
 				.append(" o WHERE v.objId=o.objId(+) AND o.objId is NULL GROUP BY v.objId").toString();
 		try (final PreparedStatement ps = conn.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
@@ -1345,9 +1345,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private void doMaintainClearLog(final Connection conn, final BaseObject settings) {
-
+		
 		final long nextClean = Convert.MapEntry.toLong(settings, "changeLogCleanupDate", 0L);
 		if (nextClean < Engine.fastTime()) {
 			try {
@@ -1355,18 +1355,18 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 					ps.setTimestamp(1, new Timestamp(Engine.fastTime() - RunnerChangeUpdate.PERIOD_CUT_LOG));
 					ps.execute();
 				}
-				settings.baseDefine("changeLogCleanupDate", Base.forDateMillis(Engine.fastTime() + 1000L * 60L * 60L * 24L));
+				settings.baseDefine("changeLogCleanupDate", Base.forDateMillis(Engine.fastTime() + 60_000L * 60L * 24L));
 				this.storage.commitProtectedSettings();
 			} catch (final SQLException e) {
-				settings.baseDefine("changeLogCleanupDate", Base.forDateMillis(Engine.fastTime() + 1000L * 60L * 60L * 24L));
+				settings.baseDefine("changeLogCleanupDate", Base.forDateMillis(Engine.fastTime() + 60_000L * 60L * 24L));
 				this.storage.commitProtectedSettings();
 				throw new RuntimeException(e);
 			}
 		}
 	}
-
+	
 	private void doMaintainFix(final Connection conn) {
-
+		
 		try {
 			final StringBuilder query = new StringBuilder();
 			query.append("UPDATE ");
@@ -1387,16 +1387,16 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			throw new RuntimeException(e);
 		}
 	}
-
+	
 	/* SELECT t.lnkId, t.lnkLuid FROM s2Tree t LEFT OUTER JOIN s2Indexed i ON t.lnkLuid=i.luid LEFT
 	 * OUTER JOIN s2Objects o ON t.objId=o.objId WHERE i.luid is NULL AND o.objDate <GETDATE() */
 	private List<Object> doMaintainFixIndicesGetThem0(final Connection conn) throws SQLException {
-
+		
 		final String query = new StringBuilder().append("SELECT t.lnkId,t.lnkLuid FROM ").append(this.server.getTnTree()).append(" t LEFT OUTER JOIN ")
 				.append(this.server.getTnIndexed()).append(" i  ON t.lnkLuid=i.luid LEFT OUTER JOIN ").append(this.server.getTnObjects())
 				.append(" o ON t.objId=o.objId WHERE i.luid is NULL AND o.objDate<?").toString();
 		try (final PreparedStatement ps = conn.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
-			ps.setTimestamp(1, new Timestamp(Engine.fastTime() - 1000L * 60L * 60L));
+			ps.setTimestamp(1, new Timestamp(Engine.fastTime() - 60_000L * 60L));
 			try (final ResultSet rs = ps.executeQuery()) {
 				if (rs.next()) {
 					final List<Object> result = new ArrayList<>();
@@ -1410,13 +1410,13 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private List<Object> doMaintainFixIndicesGetThem1(final Connection conn) throws SQLException {
-
+		
 		final String query = new StringBuilder().append("SELECT t.lnkId,t.lnkLuid FROM ").append(this.server.getTnTree()).append(" t, ").append(this.server.getTnIndexed())
 				.append(" i, ").append(this.server.getTnObjects()).append(" o WHERE t.lnkLuid=i.luid(+) AND t.objId=o.objId AND i.luid is NULL AND o.objDate<?").toString();
 		try (final PreparedStatement ps = conn.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
-			ps.setTimestamp(1, new Timestamp(Engine.fastTime() - 1000L * 60L * 60L));
+			ps.setTimestamp(1, new Timestamp(Engine.fastTime() - 60_000L * 60L));
 			try (final ResultSet rs = ps.executeQuery()) {
 				if (rs.next()) {
 					final List<Object> result = new ArrayList<>();
@@ -1430,9 +1430,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private void doMaintainIndexing(final Connection conn, final BaseObject settings) {
-
+		
 		final int indexingVersion = Convert.MapEntry.toInt(settings, "indexingVersion", 0);
 		if (indexingVersion != this.indexingVersion) {
 			try {
@@ -1486,18 +1486,18 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 				} catch (final RuntimeException e) {
 					throw e;
 				}
-				settings.baseDefine("indexCheckDate", Base.forDateMillis(Engine.fastTime() + 1000L * 60L * 60L * 24L));
+				settings.baseDefine("indexCheckDate", Base.forDateMillis(Engine.fastTime() + 60_000L * 60L * 24L));
 				this.storage.commitProtectedSettings();
 			} catch (final SQLException e) {
-				settings.baseDefine("indexCheckDate", Base.forDateMillis(Engine.fastTime() + 1000L * 60L * 60L * 24L));
+				settings.baseDefine("indexCheckDate", Base.forDateMillis(Engine.fastTime() + 60_000L * 60L * 24L));
 				this.storage.commitProtectedSettings();
 				throw new RuntimeException(e);
 			}
 		}
 	}
-
+	
 	private void doMaintainVersionUpdate(final Connection conn, final BaseObject settings) {
-
+		
 		final int systemVersion = Convert.MapEntry.toInt(settings, "systemVersion", 0);
 		if (systemVersion != this.indexingVersion) {
 			try {
@@ -1523,9 +1523,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			this.storage.commitProtectedSettings();
 		}
 	}
-
+	
 	private final void doRecycleAll(final Connection conn, final Map<String, Object> task) throws Throwable {
-
+		
 		final String guid = Convert.MapEntry.toString(task, "evtCmdGuid", "").trim();
 		final List<Object> linkData = new ArrayList<>();
 		try (final PreparedStatement ps = conn
@@ -1549,25 +1549,25 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private void doRecycleFinish(final Connection conn, final Map<String, Object> task) throws Throwable {
-
+		
 		final String delId = Convert.MapEntry.toString(task, "evtCmdGuid", "").trim();
 		final int lnkLuid = Convert.MapEntry.toInt(task, "evtCmdLuid", -1);
 		this.doCleanIndices(conn, lnkLuid);
 		MatLink.unlink(this.server, conn, delId);
 	}
-
+	
 	private void doRecycleItem(final Connection conn, final Map<String, Object> task) throws Throwable {
-
+		
 		final String delId = Convert.MapEntry.toString(task, "evtCmdGuid", "").trim();
 		final int lnkLuid = Convert.MapEntry.toInt(task, "evtCmdLuid", -1);
 		this.doCleanIndices(conn, lnkLuid);
 		MatRecycled.recycleLink(this.server, conn, delId, lnkLuid);
 	}
-
+	
 	private boolean doRecycleStart(final Connection conn, final Map<String, Object> task) throws Throwable {
-
+		
 		final String delId = Convert.MapEntry.toString(task, "evtCmdGuid", "").trim();
 		final int lnkLuid = Convert.MapEntry.toInt(task, "evtCmdLuid", -1);
 		this.doCleanIndices(conn, lnkLuid);
@@ -1585,9 +1585,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 		this.doCleanIndices(conn, lnkLuid);
 		return false;
 	}
-
+	
 	private final boolean doResync(final Connection conn, final Map<String, Object> task) throws Throwable {
-
+		
 		final String guid = Convert.MapEntry.toString(task, "evtCmdGuid", "").trim();
 		final LinkJdbc entry = MatLink.materialize(this.server, conn, guid);
 		if (entry != null) {
@@ -1599,17 +1599,17 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 		}
 		return false;
 	}
-
+	
 	private final void doUpdate(final Connection conn, final Map<String, Object> task) throws Throwable {
-
+		
 		final String guid = Convert.MapEntry.toString(task, "evtCmdGuid", "").trim();
 		final int luid = Convert.MapEntry.toInt(task, "evtCmdLuid", -1);
 		final long date = Convert.MapEntry.toLong(task, "evtDate", 0L);
 		this.doUpdate(conn, guid, luid, date);
 	}
-
+	
 	private final void doUpdate(final Connection conn, final String lnkId, final int lnkLuid, final long date) throws Throwable {
-
+		
 		if (lnkLuid != -1 && date > 0L) {
 			try (final PreparedStatement ps = conn
 					.prepareStatement("SELECT lnkIndexed FROM " + this.server.getTnIndexed() + " WHERE luid=?", ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
@@ -1648,9 +1648,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			this.indexing.doDelete(conn, lnkLuid);
 		}
 	}
-
+	
 	private final void doUpdateAll(final Connection conn, final Map<String, Object> task) throws Throwable {
-
+		
 		final String guid = Convert.MapEntry.toString(task, "evtCmdGuid", "").trim();
 		final List<Object> linkData = new ArrayList<>();
 		try (final PreparedStatement ps = conn
@@ -1678,15 +1678,15 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private final void doUpdateObject(final Connection conn, final Map<String, Object> task) throws Throwable {
-
+		
 		final String guid = Convert.MapEntry.toString(task, "evtCmdGuid", "").trim();
 		this.doUpdateObject(conn, guid);
 	}
-
+	
 	private final void doUpdateObject(final Connection conn, final String guid) throws Throwable {
-
+		
 		int count = 0;
 		if (conn.getMetaData().supportsUnionAll()) {
 			try (final PreparedStatement ps = conn.prepareStatement(
@@ -1728,9 +1728,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			MatHistory.clear(this.server, conn, guid);
 		}
 	}
-
+	
 	private final void doUpgradeIndex(final Connection conn, final int toVersion) throws Throwable {
-
+		
 		if (this.indexingVersion < toVersion) {
 			MatChange.serialize(this.server, conn, RunnerChangeUpdate.SEQ_HIGH, "upgrade-index", "*", toVersion, 0L);
 			return;
@@ -1757,15 +1757,15 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private final void doUpgradeIndex(final Connection conn, final Map<String, Object> task) throws Throwable {
-
+		
 		final int toVersion = Convert.MapEntry.toInt(task, "evtCmdLuid", -1);
 		this.doUpgradeIndex(conn, toVersion);
 	}
-
+	
 	private final void eventDone(final Connection conn, final String evtId) throws SQLException {
-
+		
 		try (final PreparedStatement ps = conn.prepareStatement(
 				"INSERT INTO " + this.server.getTnChangeLog()
 						+ "(evtId,evtDate,evtOwner,evtCmdType,evtCmdGuid,evtCmdLuid,evtCmdDate) SELECT evtId,evtDate,evtOwner,evtCmdType,evtCmdGuid,evtCmdLuid,evtCmdDate FROM "
@@ -1778,9 +1778,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			ps.execute();
 		}
 	}
-
+	
 	private final void eventIndexed(final Connection conn, final int luid, final boolean created) throws SQLException {
-
+		
 		if (created) {
 			try {
 				try (final PreparedStatement ps = conn.prepareStatement("INSERT INTO " + this.server.getTnIndexed() + "(luid,idxVersion,lnkIndexed) VALUES (?,?,?)")) {
@@ -1815,9 +1815,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			}
 		}
 	}
-
+	
 	private void fillTree(final Connection conn, final List<Object> list, final int luid) throws Throwable {
-
+		
 		final List<Object> children = MatTree.children(this.server, conn, luid);
 		for (final Iterator<Object> i = children.iterator(); i.hasNext();) {
 			final Integer integer = (Integer) i.next();
@@ -1827,9 +1827,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			this.fillTree(conn, list, integer.intValue());
 		}
 	}
-
+	
 	private void fillTree(final Connection conn, final List<Object> list, final String lnkId) throws Throwable {
-
+		
 		final List<Object> children = MatTree.children(this.server, conn, lnkId);
 		for (final Iterator<Object> i = children.iterator(); i.hasNext();) {
 			final Integer integer = (Integer) i.next();
@@ -1839,15 +1839,9 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			this.fillTree(conn, list, integer.intValue());
 		}
 	}
-
-	@Override
-	public int getVersion() {
-
-		return 24;
-	}
-
+	
 	private final void makeLost(final Connection conn, final BaseLink entry, final boolean searchUpper) throws SQLException {
-
+		
 		final boolean drop;
 		final String query = "SELECT count(*) FROM " + this.server.getTnTree() + " t, " + this.server.getTnObjects() + " o WHERE t.objId=o.objId AND t.objId=?";
 		try (final PreparedStatement ps = conn.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
@@ -1911,11 +1905,17 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			change.commit();
 		}
 	}
-
+	
+	@Override
+	public int getVersion() {
+		
+		return 24;
+	}
+	
 	@SuppressWarnings("resource")
 	@Override
 	public void run() {
-
+		
 		if (this.destroyed) {
 			return;
 		}
@@ -1924,13 +1924,13 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 			conn = this.storage.nextConnection();
 			if (conn == null) {
 				if (!this.destroyed) {
-					Act.later(null, this, 10000L);
+					Act.later(null, this, 10_000L);
 				}
 				return;
 			}
 		} catch (final Throwable t) {
 			if (!this.destroyed) {
-				Act.later(null, this, 10000L);
+				Act.later(null, this, 10_000L);
 			}
 			return;
 		}
@@ -2101,28 +2101,28 @@ final class RunnerChangeUpdate implements Runnable, Runner {
 						null,
 						this,
 						highLoad
-							? 2500L
-							: 15000L);
+							? 2_500L
+							: 15_000L);
 			}
 		}
 	}
-
+	
 	@Override
 	public void start() {
-
+		
 		this.destroyed = false;
-		Act.later(null, this, 15000L);
+		Act.later(null, this, 15_000L);
 	}
-
+	
 	@Override
 	public void stop() {
-
+		
 		this.destroyed = true;
 	}
-
+	
 	@Override
 	public String toString() {
-
+		
 		return RunnerChangeUpdate.OWNER + ": " + this.storage;
 	}
 }
