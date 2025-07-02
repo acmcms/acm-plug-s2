@@ -21,26 +21,24 @@ import ru.myx.ae3.help.Text;
 import ru.myx.ae3.report.Report;
 import ru.myx.ae3.xml.Xml;
 
-/**
- * @author myx
- * 		
+/** @author myx
+ *
  *         To change the template for this generated type comment go to
- *         Window&gt;Preferences&gt;Java&gt;Code Generation&gt;Code and Comments
- */
+ *         Window&gt;Preferences&gt;Java&gt;Code Generation&gt;Code and Comments */
 final class MatData {
-	
+
 	private static final int TYPE_EMPTY = 0;
-	
+
 	private static final int TYPE_SIMPLE_UNKNOWN = 1;
-	
+
 	private static final int TYPE_MULTI_UNKNOWN = 2;
-	
+
 	private static final int TYPE_SIMPLE_SMALL = 3;
-	
+
 	private static final int TYPE_MULTI_SMALL = 4;
-	
+
 	static final BaseObject dataMaterialize(final ServerJdbc server, final int type, final TransferCopier data, final Object attachment) throws Exception {
-		
+
 		switch (type) {
 			case TYPE_EMPTY :
 				return BaseObject.UNDEFINED;
@@ -53,10 +51,10 @@ final class MatData {
 				throw new RuntimeException("Unknown data type: " + type);
 		}
 	}
-	
+
 	static final void dataSerialize(final ServerJdbc server, final Connection conn, final String objId, final PreparedStatement ps, final int index, final BaseObject data)
 			throws Exception {
-			
+
 		if (data == null || !data.baseHasKeysOwn()) {
 			ps.setInt(index + 0, MatData.TYPE_EMPTY);
 			ps.setBytes(index + 1, Transfer.EMPTY_BYTE_ARRAY);
@@ -78,9 +76,9 @@ final class MatData {
 			}
 		}
 	}
-	
+
 	static final void delete(final ServerJdbc server, final Connection conn, final String objId) throws Exception {
-		
+
 		try (final PreparedStatement ps = conn.prepareStatement("DELETE FROM " + server.getTnObjects() + " WHERE objId=?")) {
 			ps.setString(1, objId);
 			ps.execute();
@@ -90,9 +88,9 @@ final class MatData {
 			ps.execute();
 		}
 	}
-	
+
 	static final DataJdbc materialize(final ServerJdbc server, final Connection conn, final String guid) throws Exception {
-		
+
 		try (final PreparedStatement ps = conn
 				.prepareStatement("SELECT intDataType,intData FROM " + server.getTnObjects() + " WHERE objId=?", ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
 			ps.setString(1, guid);
@@ -114,7 +112,7 @@ final class MatData {
 			}
 		}
 	}
-	
+
 	static final void serializeCreate(final ServerJdbc server,
 			final Connection conn,
 			final String objId,
@@ -126,7 +124,7 @@ final class MatData {
 			final int state,
 			final Map<String, String> extraExisting,
 			final BaseObject data) throws Exception {
-			
+
 		{
 			try (final PreparedStatement ps = conn.prepareStatement(
 					"INSERT INTO " + server.getTnObjects() + "(objId,vrId,objTitle,objCreated,objDate,objOwner,objType,objState,intDataType,intData" + (server.isUpdate3()
@@ -166,16 +164,16 @@ final class MatData {
 			}
 		}
 	}
-	
+
 	static final void update(final ServerJdbc server, final Connection conn, final String objId) throws Exception {
-		
+
 		try (final PreparedStatement ps = conn.prepareStatement("UPDATE " + server.getTnObjects() + " SET objDate=? WHERE objId=?")) {
 			ps.setTimestamp(1, new Timestamp(Engine.fastTime()));
 			ps.setString(2, objId);
 			ps.execute();
 		}
 	}
-	
+
 	static final void update(final ServerJdbc server,
 			final Connection conn,
 			final String objId,
@@ -189,7 +187,7 @@ final class MatData {
 			final String owner,
 			final int oldState,
 			final int newState) throws Exception {
-			
+
 		final List<String> setPart = new ArrayList<>();
 		if (oldState != newState) {
 			setPart.add("objState=?");
@@ -210,7 +208,11 @@ final class MatData {
 			setPart.add("objOwner=?");
 		}
 		if (!setPart.isEmpty()) {
-			try (final PreparedStatement ps = conn.prepareStatement("UPDATE " + server.getTnObjects() + " SET objDate=?, vrId=?, " + Text.join(setPart, ", ") + " WHERE objId=?")) {
+			try (final PreparedStatement ps = conn.prepareStatement(//
+					"UPDATE " + server.getTnObjects() + //
+							" SET objDate=?, vrId=?, " + String.join(", ", setPart) + //
+							" WHERE objId=?"//
+			)) {
 				int index = 1;
 				ps.setTimestamp(index++, new Timestamp(Engine.fastTime()));
 				ps.setString(index++, vrId);
@@ -234,7 +236,7 @@ final class MatData {
 			}
 		}
 	}
-	
+
 	static final void update(final ServerJdbc server,
 			final Connection conn,
 			final String historyId,
@@ -253,7 +255,7 @@ final class MatData {
 			final Map<String, String> extraExisting,
 			final BaseObject removed,
 			final BaseObject added) throws Exception {
-			
+
 		final List<String> setPart = new ArrayList<>();
 		if (historyId != null || oldState != newState) {
 			setPart.add("objState=?");
@@ -293,9 +295,12 @@ final class MatData {
 			{
 				final int intDataType;
 				final TransferCopier intData;
-				try (final PreparedStatement ps = conn.prepareStatement(historyId == null
-					? "SELECT intDataType,intData FROM " + server.getTnObjects() + " WHERE objId=?"
-					: "SELECT intDataType,intData FROM " + server.getTnObjectHistory() + " WHERE objId=? AND hsId=?", ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
+				try (final PreparedStatement ps = conn.prepareStatement(
+						historyId == null
+							? "SELECT intDataType,intData FROM " + server.getTnObjects() + " WHERE objId=?"
+							: "SELECT intDataType,intData FROM " + server.getTnObjectHistory() + " WHERE objId=? AND hsId=?",
+						ResultSet.TYPE_FORWARD_ONLY,
+						ResultSet.CONCUR_READ_ONLY)) {
 					ps.setString(1, objId);
 					if (historyId != null) {
 						ps.setString(2, historyId);
@@ -337,7 +342,11 @@ final class MatData {
 			data = null;
 		}
 		if (!setPart.isEmpty()) {
-			try (final PreparedStatement ps = conn.prepareStatement("UPDATE " + server.getTnObjects() + " SET objDate=?, vrId=?, " + Text.join(setPart, ", ") + " WHERE objId=?")) {
+			try (final PreparedStatement ps = conn.prepareStatement(//
+					"UPDATE " + server.getTnObjects() + //
+							" SET objDate=?, vrId=?, " + String.join(", ", setPart) + //
+							" WHERE objId=?"//
+			)) {
 				int index = 1;
 				ps.setTimestamp(index++, new Timestamp(Engine.fastTime()));
 				ps.setString(index++, vrId);
@@ -402,9 +411,9 @@ final class MatData {
 			}
 		}
 	}
-	
+
 	static final void update3(final ServerJdbc server, final Connection conn, final String guid) throws Exception {
-		
+
 		final BaseObject map;
 		try (final PreparedStatement ps = conn
 				.prepareStatement("SELECT intDataType,intData FROM " + server.getTnObjects() + " WHERE objId=?", ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
